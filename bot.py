@@ -1,4 +1,7 @@
 import os
+from datetime import time
+from zoneinfo import ZoneInfo
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -12,11 +15,25 @@ TOKEN = os.environ["BOT_TOKEN"]
 CHANNEL_USERNAME = "@ChartPro"
 CHANNEL_LINK = "https://t.me/ChartPro"
 
+IST = ZoneInfo("Asia/Kolkata")
 
+
+# ---------- START ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     keyboard = [
-        [InlineKeyboardButton("📢 Join Chart Pro", url=CHANNEL_LINK)],
-        [InlineKeyboardButton("✅ Verify Join", callback_data="verify")]
+        [
+            InlineKeyboardButton(
+                "📢 Join Chart Pro",
+                url=CHANNEL_LINK
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "✅ Verify Join",
+                callback_data="verify"
+            )
+        ]
     ]
 
     await update.message.reply_text(
@@ -34,71 +51,132 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# ---------- VERIFY ----------
 async def verify(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     query = update.callback_query
     await query.answer()
+
+    user_id = query.from_user.id
 
     try:
         member = await context.bot.get_chat_member(
             chat_id=CHANNEL_USERNAME,
-            user_id=query.from_user.id
+            user_id=user_id
         )
 
-        if member.status in ["member", "administrator", "creator"]:
-            menu = [
-                [
-                    InlineKeyboardButton("📊 Market Updates", callback_data="market"),
-                    InlineKeyboardButton("📈 NIFTY", callback_data="nifty")
-                ],
-                [
-                    InlineKeyboardButton("🪙 Gold & Forex", callback_data="gold"),
-                    InlineKeyboardButton("📚 Learning", callback_data="learning")
-                ],
-                [InlineKeyboardButton("📢 Open Chart Pro", url=CHANNEL_LINK)]
-            ]
-
+        if member.status in [
+            "member",
+            "administrator",
+            "creator"
+        ]:
             await query.message.reply_text(
                 "✅ Verification Successful!\n\n"
-                "🎉 Welcome to Chart Pro!\n"
-                "👇 Ab option select karein:",
-                reply_markup=InlineKeyboardMarkup(menu)
+                "🎉 Aap Chart Pro channel join kar chuke hain.\n"
+                "📊 Welcome to Chart Pro!"
             )
         else:
             await query.message.reply_text(
-                "❌ Pehle Chart Pro channel join karein.\n"
-                "Uske baad ✅ Verify Join dabayein."
+                "❌ Channel join nahi hua.\n\n"
+                "Pehle 📢 Join Chart Pro button se channel join karein,\n"
+                "phir ✅ Verify Join dabayein."
             )
 
-    except Exception:
+    except Exception as e:
+        print("Verification error:", e)
+
         await query.message.reply_text(
-            "❌ Verification nahi ho paya.\n"
-            "Bot ko channel me Admin rakhein aur dobara try karein."
+            "⚠️ Verification nahi ho paya.\n"
+            "Channel join karke dobara Verify dabayein."
         )
 
 
-async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+# ---------- 9 AM POST ----------
+async def morning_post(context: ContextTypes.DEFAULT_TYPE):
 
-    messages = {
-        "market": "📊 MARKET UPDATES\n\nNIFTY • BANK NIFTY • SENSEX market updates.",
-        "nifty": "📈 NIFTY\n\nNIFTY & BANK NIFTY chart-based educational updates.",
-        "gold": "🪙 GOLD & FOREX\n\nGold & Forex market educational updates.",
-        "learning": "📚 MARKET LEARNING\n\nCharts, trading education & risk management.\n\n⚠️ Trading involves risk."
-    }
+    text = (
+        "🌅 GOOD MORNING CHART PRO FAMILY 📊\n\n"
+        "📈 Today's Market Watch\n\n"
+        "💹 NIFTY 50\n"
+        "📊 BANK NIFTY\n"
+        "📉 SENSEX\n"
+        "🪙 GOLD\n"
+        "💱 FOREX\n\n"
+        "🔔 Aaj ke market updates ke liye notifications ON rakhein.\n\n"
+        "📚 Educational purposes only.\n"
+        "⚠️ Trading involves risk."
+    )
 
-    await query.message.reply_text(messages[query.data])
+    await context.bot.send_message(
+        chat_id=CHANNEL_USERNAME,
+        text=text
+    )
 
 
+# ---------- 1 PM POST ----------
+async def afternoon_post(context: ContextTypes.DEFAULT_TYPE):
+
+    text = (
+        "📊 CHART PRO — MARKET UPDATE\n\n"
+        "🕐 Afternoon Market Check\n\n"
+        "📈 NIFTY 50\n"
+        "💹 BANK NIFTY\n"
+        "📉 SENSEX\n"
+        "🪙 GOLD & FOREX\n\n"
+        "🔔 Market updates ke liye Chart Pro ke saath jude rahein.\n\n"
+        "⚠️ Educational purposes only. Trading involves risk."
+    )
+
+    await context.bot.send_message(
+        chat_id=CHANNEL_USERNAME,
+        text=text
+    )
+
+
+# ---------- 6 PM POST ----------
+async def evening_post(context: ContextTypes.DEFAULT_TYPE):
+
+    text = (
+        "🌆 CHART PRO EVENING UPDATE 📊\n\n"
+        "📈 Today's Market Wrap\n\n"
+        "💹 NIFTY • BANK NIFTY • SENSEX\n"
+        "🪙 Gold & Forex\n"
+        "📚 Market Learning\n\n"
+        "🔔 Kal ke updates ke liye notifications ON rakhein.\n\n"
+        "⚠️ Educational purposes only. Trading involves risk."
+    )
+
+    await context.bot.send_message(
+        chat_id=CHANNEL_USERNAME,
+        text=text
+    )
+
+
+# ---------- BOT ----------
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(verify, pattern="^verify$"))
-app.add_handler(
-    CallbackQueryHandler(
-        menu,
-        pattern="^(market|nifty|gold|learning)$"
-    )
+
+
+# ---------- AUTO POST SCHEDULE ----------
+job_queue = app.job_queue
+
+job_queue.run_daily(
+    morning_post,
+    time=time(hour=9, minute=0, tzinfo=IST)
 )
 
+job_queue.run_daily(
+    afternoon_post,
+    time=time(hour=13, minute=0, tzinfo=IST)
+)
+
+job_queue.run_daily(
+    evening_post,
+    time=time(hour=18, minute=0, tzinfo=IST)
+)
+
+
+print("Chart Pro Bot Running...")
 app.run_polling()
