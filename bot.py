@@ -9,25 +9,14 @@ from telegram.ext import (
 
 TOKEN = os.environ["BOT_TOKEN"]
 
-# Chart Pro channel
 CHANNEL_USERNAME = "@ChartPro"
 CHANNEL_LINK = "https://t.me/ChartPro"
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [
-            InlineKeyboardButton(
-                "📢 Join Chart Pro",
-                url=CHANNEL_LINK
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "✅ Verify Join",
-                callback_data="verify_join"
-            )
-        ]
+        [InlineKeyboardButton("📢 Join Chart Pro", url=CHANNEL_LINK)],
+        [InlineKeyboardButton("✅ Verify Join", callback_data="verify")]
     ]
 
     await update.message.reply_text(
@@ -45,47 +34,71 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def verify_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def verify(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
-    user_id = query.from_user.id
 
     try:
         member = await context.bot.get_chat_member(
             chat_id=CHANNEL_USERNAME,
-            user_id=user_id
+            user_id=query.from_user.id
         )
 
         if member.status in ["member", "administrator", "creator"]:
+            menu = [
+                [
+                    InlineKeyboardButton("📊 Market Updates", callback_data="market"),
+                    InlineKeyboardButton("📈 NIFTY", callback_data="nifty")
+                ],
+                [
+                    InlineKeyboardButton("🪙 Gold & Forex", callback_data="gold"),
+                    InlineKeyboardButton("📚 Learning", callback_data="learning")
+                ],
+                [InlineKeyboardButton("📢 Open Chart Pro", url=CHANNEL_LINK)]
+            ]
+
             await query.message.reply_text(
                 "✅ Verification Successful!\n\n"
-                "🎉 Aap Chart Pro channel join kar chuke hain.\n"
-                "📊 Welcome to Chart Pro!"
+                "🎉 Welcome to Chart Pro!\n"
+                "👇 Ab option select karein:",
+                reply_markup=InlineKeyboardMarkup(menu)
             )
         else:
-            await query.answer(
-                "❌ Pehle Chart Pro channel join karein.",
-                show_alert=True
+            await query.message.reply_text(
+                "❌ Pehle Chart Pro channel join karein.\n"
+                "Uske baad ✅ Verify Join dabayein."
             )
 
     except Exception:
-        await query.answer(
+        await query.message.reply_text(
             "❌ Verification nahi ho paya.\n"
-            "Bot ko channel me Admin banana zaroori hai.",
-            show_alert=True
+            "Bot ko channel me Admin rakhein aur dobara try karein."
         )
 
 
-def main():
-    app = Application.builder().token(TOKEN).build()
+async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(verify_join, pattern="^verify_join$"))
+    messages = {
+        "market": "📊 MARKET UPDATES\n\nNIFTY • BANK NIFTY • SENSEX market updates.",
+        "nifty": "📈 NIFTY\n\nNIFTY & BANK NIFTY chart-based educational updates.",
+        "gold": "🪙 GOLD & FOREX\n\nGold & Forex market educational updates.",
+        "learning": "📚 MARKET LEARNING\n\nCharts, trading education & risk management.\n\n⚠️ Trading involves risk."
+    }
 
-    print("Chart Pro Bot Running...")
-    app.run_polling()
+    await query.message.reply_text(messages[query.data])
 
 
-if __name__ == "__main__":
-    main()
+app = Application.builder().token(TOKEN).build()
+
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CallbackQueryHandler(verify, pattern="^verify$"))
+app.add_handler(
+    CallbackQueryHandler(
+        menu,
+        pattern="^(market|nifty|gold|learning)$"
+    )
+)
+
+app.run_polling()
