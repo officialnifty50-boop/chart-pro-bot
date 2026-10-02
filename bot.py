@@ -1,6 +1,6 @@
 import os
-from datetime import time
-from zoneinfo import ZoneInfo
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -10,173 +10,169 @@ from telegram.ext import (
     ContextTypes,
 )
 
-TOKEN = os.environ["BOT_TOKEN"]
+# ==========================================
+# SETTINGS
+# ==========================================
 
-CHANNEL_USERNAME = "@ChartPro"
-CHANNEL_LINK = "https://t.me/ChartPro"
+BOT_TOKEN = os.environ["BOT_TOKEN"]
 
-IST = ZoneInfo("Asia/Kolkata")
+# Private Chart Pro Telegram Channel
+CHANNEL_LINK = "https://t.me/+f05Fzq_lvMk5ZjBl"
 
 
-# ---------- START ----------
+# ==========================================
+# RENDER FREE WEB SERVER
+# ==========================================
+
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"Chart Pro Bot is running")
+
+    def log_message(self, format, *args):
+        return
+
+
+def run_web_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), HealthHandler)
+    print(f"Web server running on port {port}")
+    server.serve_forever()
+
+
+# ==========================================
+# /START AUTOMATIC MESSAGE
+# ==========================================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = update.effective_user
+    first_name = user.first_name or "Trader"
+
+    message = f"""
+👋 Welcome {first_name}!
+
+📊 CHART PRO
+
+Welcome to the Chart Pro community.
+
+📈 Market Updates
+📊 Chart Learning
+📰 Important Market Information
+🎯 Trading Education
+⏰ Regular Updates
+
+👇 Join our private Telegram channel to continue.
+
+⚠️ Educational content only.
+Trading involves market risk.
+"""
 
     keyboard = [
         [
             InlineKeyboardButton(
-                "📢 Join Chart Pro",
+                "📢 JOIN CHART PRO",
                 url=CHANNEL_LINK
             )
         ],
         [
             InlineKeyboardButton(
-                "✅ Verify Join",
-                callback_data="verify"
+                "✅ I HAVE JOINED",
+                callback_data="joined"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "ℹ️ ABOUT CHART PRO",
+                callback_data="about"
             )
         ]
     ]
 
     await update.message.reply_text(
-        "👋 Welcome to CHART PRO 📊\n\n"
-        "Hello Trader! 🚀\n"
-        "Chart Pro Official Bot me aapka swagat hai.\n\n"
-        "📈 Market & Chart Updates\n"
-        "💹 NIFTY • BANK NIFTY • SENSEX\n"
-        "🪙 Gold & Forex Updates\n"
-        "📚 Trading & Market Learning\n\n"
-        "👇 Pehle Official Channel Join karein.\n"
-        "Join karne ke baad ✅ Verify Join dabayein.\n\n"
-        "⚠️ Educational purposes only. Trading involves risk.",
+        message,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
-# ---------- VERIFY ----------
-async def verify(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ==========================================
+# BUTTON RESPONSES
+# ==========================================
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     query = update.callback_query
     await query.answer()
 
-    user_id = query.from_user.id
-
-    try:
-        member = await context.bot.get_chat_member(
-            chat_id=CHANNEL_USERNAME,
-            user_id=user_id
-        )
-
-        if member.status in [
-            "member",
-            "administrator",
-            "creator"
-        ]:
-            await query.message.reply_text(
-                "✅ Verification Successful!\n\n"
-                "🎉 Aap Chart Pro channel join kar chuke hain.\n"
-                "📊 Welcome to Chart Pro!"
-            )
-        else:
-            await query.message.reply_text(
-                "❌ Channel join nahi hua.\n\n"
-                "Pehle 📢 Join Chart Pro button se channel join karein,\n"
-                "phir ✅ Verify Join dabayein."
-            )
-
-    except Exception as e:
-        print("Verification error:", e)
+    if query.data == "joined":
 
         await query.message.reply_text(
-            "⚠️ Verification nahi ho paya.\n"
-            "Channel join karke dobara Verify dabayein."
+            """✅ Thank you!
+
+Welcome to Chart Pro 📊
+
+You can now follow the private channel for regular updates.
+
+📈 Learn • Understand • Improve
+
+⚠️ No guaranteed profits.
+Always manage your own risk."""
+        )
+
+    elif query.data == "about":
+
+        await query.message.reply_text(
+            """📊 CHART PRO
+
+Chart Pro provides educational market content and regular updates.
+
+📈 Charts
+📚 Market Learning
+📰 Market Updates
+📊 Trading Education
+
+Use the button below to join our private community.""",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "📢 JOIN PRIVATE CHANNEL",
+                        url=CHANNEL_LINK
+                    )
+                ]
+            ])
         )
 
 
-# ---------- 9 AM POST ----------
-async def morning_post(context: ContextTypes.DEFAULT_TYPE):
+# ==========================================
+# BOT
+# ==========================================
 
-    text = (
-        "🌅 GOOD MORNING CHART PRO FAMILY 📊\n\n"
-        "📈 Today's Market Watch\n\n"
-        "💹 NIFTY 50\n"
-        "📊 BANK NIFTY\n"
-        "📉 SENSEX\n"
-        "🪙 GOLD\n"
-        "💱 FOREX\n\n"
-        "🔔 Aaj ke market updates ke liye notifications ON rakhein.\n\n"
-        "📚 Educational purposes only.\n"
-        "⚠️ Trading involves risk."
+def main():
+
+    # Start HTTP server required by Render Web Service
+    threading.Thread(
+        target=run_web_server,
+        daemon=True
+    ).start()
+
+    application = Application.builder().token(BOT_TOKEN).build()
+
+    application.add_handler(
+        CommandHandler("start", start)
     )
 
-    await context.bot.send_message(
-        chat_id=CHANNEL_USERNAME,
-        text=text
+    application.add_handler(
+        CallbackQueryHandler(button_handler)
     )
 
+    print("Chart Pro Bot Running...")
 
-# ---------- 1 PM POST ----------
-async def afternoon_post(context: ContextTypes.DEFAULT_TYPE):
-
-    text = (
-        "📊 CHART PRO — MARKET UPDATE\n\n"
-        "🕐 Afternoon Market Check\n\n"
-        "📈 NIFTY 50\n"
-        "💹 BANK NIFTY\n"
-        "📉 SENSEX\n"
-        "🪙 GOLD & FOREX\n\n"
-        "🔔 Market updates ke liye Chart Pro ke saath jude rahein.\n\n"
-        "⚠️ Educational purposes only. Trading involves risk."
-    )
-
-    await context.bot.send_message(
-        chat_id=CHANNEL_USERNAME,
-        text=text
+    application.run_polling(
+        allowed_updates=Update.ALL_TYPES
     )
 
 
-# ---------- 6 PM POST ----------
-async def evening_post(context: ContextTypes.DEFAULT_TYPE):
-
-    text = (
-        "🌆 CHART PRO EVENING UPDATE 📊\n\n"
-        "📈 Today's Market Wrap\n\n"
-        "💹 NIFTY • BANK NIFTY • SENSEX\n"
-        "🪙 Gold & Forex\n"
-        "📚 Market Learning\n\n"
-        "🔔 Kal ke updates ke liye notifications ON rakhein.\n\n"
-        "⚠️ Educational purposes only. Trading involves risk."
-    )
-
-    await context.bot.send_message(
-        chat_id=CHANNEL_USERNAME,
-        text=text
-    )
-
-
-# ---------- BOT ----------
-app = Application.builder().token(TOKEN).build()
-
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(verify, pattern="^verify$"))
-
-
-# ---------- AUTO POST SCHEDULE ----------
-job_queue = app.job_queue
-
-job_queue.run_daily(
-    morning_post,
-    time=time(hour=9, minute=0, tzinfo=IST)
-)
-
-job_queue.run_daily(
-    afternoon_post,
-    time=time(hour=13, minute=0, tzinfo=IST)
-)
-
-job_queue.run_daily(
-    evening_post,
-    time=time(hour=18, minute=0, tzinfo=IST)
-)
-
-
-print("Chart Pro Bot Running...")
-app.run_polling()
+if __name__ == "__main__":
+    main()
